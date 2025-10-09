@@ -1,0 +1,11 @@
+enum_discrim_align_threshold = 24
+struct_field_align_threshold = 12
+hard_tabs = true
+tab_spaces = 4 
+use_field_init_shorthand = true
+hex_literal_case = "Upper"
+#float_literal_trailing_zero = "IfNoPostFix"
+group_imports = "StdExternalCrate"
+imports_granularity = "Crate"
+overflow_delimited_expr = true
+reorder_impl_items = true
