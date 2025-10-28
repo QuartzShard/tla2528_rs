@@ -158,15 +158,21 @@ impl<I2C: i2c::I2c> Tla2528<I2C> {
 
 	/// Read a specific GPIO
 	pub fn digital_in(&mut self, channel: Channel) -> Result<bool, TlaError<I2C>> {
+        self.valid_gpi(channel)?;
 		let channel = channel as u8;
-		if !self.config.pin.val_0_at(channel as usize) {
-			return Err(TlaError::DigitalFromAnalog);
-		};
-		if self.config.gpio.val_0_at(channel as usize) {
-			return Err(TlaError::WrongGPIODirection);
-		};
 		Ok((self.read_reg(GPI_VALUE)? & 1 << channel).count_ones() == 1)
 	}
+
+    pub fn valid_gpi(&mut self, channel: Channel) -> Result<(), TlaError<I2C>> {
+		let channel = channel as usize;
+		if !self.config.pin.val_0_at(channel) {
+			return Err(TlaError::DigitalFromAnalog);
+		};
+		if self.config.gpio.val_0_at(channel) {
+			return Err(TlaError::WrongGPIODirection);
+		};
+        Ok(())
+    }
 
 	/// Read all GPIO. Pins that are not configured as Digital In will be masked to 0
 	pub fn read_gpio(&mut self) -> Result<u8, TlaError<I2C>> {
@@ -176,20 +182,25 @@ impl<I2C: i2c::I2c> Tla2528<I2C> {
 
 	/// Set a GPIO out
 	pub fn digital_out(&mut self, channel: Channel, val: bool) -> Result<(), TlaError<I2C>> {
+        self.valid_gpo(channel)?;
 		let channel = channel as u8;
-		if !self.config.pin.val_0_at(channel as usize) {
-			return Err(TlaError::DigitalFromAnalog);
-		};
-		if !self.config.gpio.val_0_at(channel as usize) {
-			return Err(TlaError::WrongGPIODirection);
-		};
-
 		if val {
 			self.set_bit(GPO_VALUE, 1 << channel)
 		} else {
 			self.clear_bit(GPO_VALUE, 1 << channel)
 		}
 	}
+
+    pub fn valid_gpo(&mut self, channel: Channel) -> Result<(), TlaError<I2C>> {
+		let channel = channel as usize;
+		if !self.config.pin.val_0_at(channel) {
+			return Err(TlaError::DigitalFromAnalog);
+		};
+		if !self.config.gpio.val_0_at(channel) {
+			return Err(TlaError::WrongGPIODirection);
+		};
+        Ok(())
+    }
 
 	/// Write a new value to a register
 	fn write_reg(&mut self, addr: u8, val: u8) -> Result<(), TlaError<I2C>> {
