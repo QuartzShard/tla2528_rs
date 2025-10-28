@@ -1,7 +1,14 @@
 #![no_std]
 
+use core::fmt::Debug;
+
 use bilge::prelude::*;
 use embedded_hal::i2c;
+
+#[cfg(feature = "gpio")]
+mod gpio;
+#[cfg(feature = "gpio")]
+pub use gpio::*;
 
 // Registers
 pub const SYSTEM_STATUS: u8 = 0x00; // Reset 0x80
@@ -30,7 +37,7 @@ pub enum Opcode {
 
 // Channels
 #[bitsize(4)]
-#[derive(FromBits)]
+#[derive(FromBits, Clone, Copy)]
 pub enum Channel {
 	Ch0,
 	Ch1,
@@ -441,6 +448,7 @@ pub struct ChannelSelect {
 #[derive(FromBits)]
 pub struct AutoSeqChannelSelect([bool; 8]);
 
+#[derive(Debug)]
 pub enum TlaError<I2C: i2c::I2c> {
 	I2c(I2C::Error),
 	InitFail,
@@ -449,3 +457,4 @@ pub enum TlaError<I2C: i2c::I2c> {
 	DigitalFromAnalog,
 	WrongGPIODirection,
 }
+
