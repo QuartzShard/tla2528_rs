@@ -31,6 +31,12 @@ pub struct GpioWrapper<I2C: i2c::I2c, M: Mode> {
     _mode: PhantomData<M>
 }
 
+// Temporary Debug impl to see if this is the issue
+impl<T: i2c::I2c> core::fmt::Debug for GpioWrapper<embedded_hal_bus::i2c::CriticalSectionDevice<'_, T>, Output> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "GpioWrapper")
+    }
+}
 
 impl<I2C: i2c::I2c, M: Mode> embedded_hal::digital::ErrorType for GpioWrapper<I2C, M> {
     type Error = TlaError<I2C>;
