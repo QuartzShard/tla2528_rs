@@ -285,7 +285,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C> {
 
 // Config register bitmaps
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Config {
 	general:   GeneralConfig,
 	data:      DataConfig,
@@ -298,7 +298,7 @@ pub struct Config {
 }
 
 #[bitsize(8)]
-#[derive(FromBits)]
+#[derive(FromBits, Clone, Copy)]
 pub struct SystemStatus {
 	rsvd:         bool,
 	seq_status:   bool,
@@ -317,7 +317,7 @@ impl Default for SystemStatus {
 }
 
 #[bitsize(8)]
-#[derive(Default, FromBits)]
+#[derive(Default, FromBits, Clone, Copy)]
 pub struct GeneralConfig {
 	reserved: u4,
 	cnvst:    bool,
@@ -327,7 +327,7 @@ pub struct GeneralConfig {
 }
 
 #[bitsize(8)]
-#[derive(Default, FromBits)]
+#[derive(Default, FromBits, Clone, Copy)]
 pub struct DataConfig {
 	fix_pat:       bool,
 	reserved:      u1,
@@ -336,7 +336,7 @@ pub struct DataConfig {
 }
 
 #[bitsize(2)]
-#[derive(FromBits, Default)]
+#[derive(FromBits, Default, Clone, Copy)]
 pub enum AppendStatus {
 	#[default]
 	No,
@@ -346,14 +346,14 @@ pub enum AppendStatus {
 }
 
 #[bitsize(8)]
-#[derive(Default, FromBits)]
+#[derive(Default, FromBits, Clone, Copy)]
 pub struct OsrConfig {
 	reserved: u5,
 	osr:      OversamplingRatio,
 }
 
 #[bitsize(3)]
-#[derive(FromBits, Default)]
+#[derive(FromBits, Default, Clone, Copy)]
 pub enum OversamplingRatio {
 	#[default]
 	_0,
@@ -367,7 +367,7 @@ pub enum OversamplingRatio {
 }
 
 #[bitsize(8)]
-#[derive(Default, FromBits)]
+#[derive(Default, FromBits, Clone, Copy)]
 pub struct OpmodeConfig {
 	reserved: u3,
 	osc_sel:  OscSel,
@@ -375,7 +375,7 @@ pub struct OpmodeConfig {
 }
 
 #[bitsize(1)]
-#[derive(Default, FromBits)]
+#[derive(Default, FromBits, Clone, Copy)]
 pub enum OscSel {
 	#[default]
 	_1MHz,
@@ -383,7 +383,7 @@ pub enum OscSel {
 }
 
 #[bitsize(4)]
-#[derive(Default, FromBits)]
+#[derive(Default, FromBits, Clone, Copy)]
 pub enum ClkDiv {
 	#[default]
 	_1,
@@ -405,32 +405,32 @@ pub enum ClkDiv {
 }
 
 #[bitsize(8)]
-#[derive(Default, FromBits)]
+#[derive(Default, FromBits, Clone, Copy)]
 /// 0 for AIN, 1 for GPIO
 pub struct PinConfig([bool; 8]);
 
 #[bitsize(8)]
-#[derive(Default, FromBits)]
+#[derive(Default, FromBits, Clone, Copy)]
 /// 0 for In, 1 for Out
 pub struct GpioConfig([bool; 8]);
 
 #[bitsize(8)]
-#[derive(Default, FromBits)]
+#[derive(Default, FromBits, Clone, Copy)]
 /// 0 for Open-Drain, 1 for Push-Pull
 pub struct GpoDriveConfig([bool; 8]);
 
 #[bitsize(8)]
-#[derive(FromBits)]
+#[derive(FromBits, Clone, Copy)]
 /// Output
 pub struct GpoValue([bool; 8]);
 
 #[bitsize(8)]
-#[derive(FromBits)]
+#[derive(FromBits, Clone, Copy)]
 // Input
 pub struct GpiValue([bool; 8]);
 
 #[bitsize(8)]
-#[derive(Default, FromBits)]
+#[derive(Default, FromBits, Clone, Copy)]
 pub struct SequenceConfig {
 	reserved:  u3,
 	seq_start: bool,
@@ -439,7 +439,7 @@ pub struct SequenceConfig {
 }
 
 #[bitsize(2)]
-#[derive(Default, FromBits)]
+#[derive(Default, FromBits, Clone, Copy)]
 pub enum SeqMode {
 	#[default]
 	Manual,
@@ -449,14 +449,14 @@ pub enum SeqMode {
 }
 
 #[bitsize(8)]
-#[derive(FromBits)]
+#[derive(FromBits, Clone, Copy)]
 pub struct ChannelSelect {
 	reserved:    u4,
 	manual_chid: Channel,
 }
 
 #[bitsize(8)]
-#[derive(FromBits)]
+#[derive(FromBits, Clone, Copy)]
 pub struct AutoSeqChannelSelect([bool; 8]);
 
 #[derive(Debug)]
