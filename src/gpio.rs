@@ -3,7 +3,7 @@ use super::*;
 
 mutually_exclusive_features::exactly_one_of!("gpio_critical_section", "gpio_atomic");
 
-impl<I2C: i2c::I2c + Debug> embedded_hal::digital::Error for TlaError<I2C> {
+impl<I2C: i2c::I2c> embedded_hal::digital::Error for TlaError<I2C> {
     fn kind(&self) -> embedded_hal::digital::ErrorKind {
         embedded_hal::digital::ErrorKind::Other
     }
@@ -32,7 +32,7 @@ pub struct GpioWrapper<I2C: i2c::I2c, M: Mode> {
 }
 
 
-impl<I2C: i2c::I2c + Debug, M: Mode> embedded_hal::digital::ErrorType for GpioWrapper<I2C, M> {
+impl<I2C: i2c::I2c, M: Mode> embedded_hal::digital::ErrorType for GpioWrapper<I2C, M> {
     type Error = TlaError<I2C>;
 }
 
@@ -49,7 +49,7 @@ impl<I2C: i2c::I2c> GpioWrapper<I2C, Output> {
     }
 }
 #[cfg(feature = "gpio_critical_section")]
-impl<I2C: i2c::I2c + Debug> embedded_hal::digital::OutputPin for GpioWrapper<I2C, Output> {
+impl<I2C: i2c::I2c> embedded_hal::digital::OutputPin for GpioWrapper<I2C, Output> {
     fn set_low(&mut self) -> Result<(), Self::Error> {
         critical_section::with(|c| {
             self.tla.borrow_ref_mut(c).digital_out(self.channel, false)
@@ -73,7 +73,7 @@ impl<I2C: i2c::I2c> GpioWrapper<I2C, Input> {
     }
 }
 #[cfg(feature = "gpio_critical_section")]
-impl<I2C: i2c::I2c + Debug> embedded_hal::digital::InputPin for GpioWrapper<I2C, Input> {
+impl<I2C: i2c::I2c> embedded_hal::digital::InputPin for GpioWrapper<I2C, Input> {
     fn is_high(&mut self) -> Result<bool, Self::Error> {
         critical_section::with(|c| {
             self.tla.borrow_ref_mut(c).digital_in(self.channel)

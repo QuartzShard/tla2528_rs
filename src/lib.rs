@@ -459,7 +459,6 @@ pub struct ChannelSelect {
 #[derive(FromBits, Clone, Copy)]
 pub struct AutoSeqChannelSelect([bool; 8]);
 
-#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum TlaError<I2C: i2c::I2c> {
 	I2c(I2C::Error),
@@ -468,5 +467,18 @@ pub enum TlaError<I2C: i2c::I2c> {
 	AnalogFromDigital,
 	DigitalFromAnalog,
 	WrongGPIODirection,
+}
+
+impl<I2C: i2c::I2c> Debug for TlaError<I2C> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::I2c(_) => write!(f, "I2C Error"), 
+            Self::InitFail => write!(f, "InitFail"),
+            Self::WrongMode => write!(f, "WrongMode"),
+            Self::AnalogFromDigital => write!(f, "AnalogFromDigital"),
+            Self::DigitalFromAnalog => write!(f, "DigitalFromAnalog"),
+            Self::WrongGPIODirection => write!(f, "WrongGPIODirection"),
+        }
+    }
 }
 
