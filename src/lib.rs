@@ -449,6 +449,7 @@ pub struct ChannelSelect {
 pub struct AutoSeqChannelSelect([bool; 8]);
 
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum TlaError<I2C: i2c::I2c> {
 	I2c(I2C::Error),
 	InitFail,
