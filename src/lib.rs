@@ -472,7 +472,7 @@ pub enum TlaError<I2C: i2c::I2c> {
 impl<I2C: i2c::I2c> Debug for TlaError<I2C> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::I2c(_) => write!(f, "I2C Error"), 
+            Self::I2c(_) => write!(f, "I2CError"), 
             Self::InitFail => write!(f, "InitFail"),
             Self::WrongMode => write!(f, "WrongMode"),
             Self::AnalogFromDigital => write!(f, "AnalogFromDigital"),
