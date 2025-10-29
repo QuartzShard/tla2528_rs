@@ -287,14 +287,14 @@ impl<I2C: i2c::I2c> Tla2528<I2C> {
 
 #[derive(Default, Clone)]
 pub struct Config {
-	general:   GeneralConfig,
-	data:      DataConfig,
-	osr:       OsrConfig,
-	opmode:    OpmodeConfig,
-	pin:       PinConfig,
-	gpio:      GpioConfig,
-	gpo_drive: GpoDriveConfig,
-	sequence:  SequenceConfig,
+	pub general:   GeneralConfig,
+	pub data:      DataConfig,
+	pub osr:       OsrConfig,
+	pub opmode:    OpmodeConfig,
+	pub pin:       PinConfig,
+	pub gpio:      GpioConfig,
+	pub gpo_drive: GpoDriveConfig,
+	pub sequence:  SequenceConfig,
 }
 
 #[bitsize(8)]
