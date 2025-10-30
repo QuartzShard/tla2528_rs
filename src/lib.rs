@@ -329,10 +329,10 @@ pub struct GeneralConfig {
 #[bitsize(8)]
 #[derive(Default, FromBits, Clone, Copy)]
 pub struct DataConfig {
-	fix_pat:       bool,
-	reserved:      u1,
-	append_status: AppendStatus,
 	reserved:      u4,
+	append_status: AppendStatus,
+	reserved:      u1,
+	fix_pat:       bool,
 }
 
 #[bitsize(2)]
