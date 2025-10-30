@@ -148,8 +148,8 @@ impl<I2C: i2c::I2c> Tla2528<I2C> {
 		};
 
 		let channel = match (&channel_append, averaging) {
-			(AppendStatus::Yes, true) => Some(Channel::from(u4::from(buf[2] >> 4))),
-			(AppendStatus::Yes, false) => Some(Channel::from(u4::from(buf[1] & 0x0F))),
+			(AppendStatus::Yes, true) => Some(Channel::from(u4::new(buf[2] >> 4))),
+			(AppendStatus::Yes, false) => Some(Channel::from(u4::new(buf[1] & 0x0F))),
 			(AppendStatus::No, _) => None,
 			(AppendStatus::Invalid, _) => None,
 		};
