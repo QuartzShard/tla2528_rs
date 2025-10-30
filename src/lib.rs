@@ -300,14 +300,14 @@ pub struct Config {
 #[bitsize(8)]
 #[derive(FromBits, Clone, Copy)]
 pub struct SystemStatus {
-	rsvd:         bool,
-	seq_status:   bool,
-	i2c_speed:    bool,
-	reserved:     bool,
-	osr_done:     bool,
-	crc_err_fuse: bool,
-	reserved:     bool,
 	bor:          bool,
+	reserved:     bool,
+	crc_err_fuse: bool,
+	osr_done:     bool,
+	reserved:     bool,
+	i2c_speed:    bool,
+	seq_status:   bool,
+	rsvd:         bool,
 }
 
 impl Default for SystemStatus {
@@ -319,11 +319,11 @@ impl Default for SystemStatus {
 #[bitsize(8)]
 #[derive(Default, FromBits, Clone, Copy)]
 pub struct GeneralConfig {
-	reserved: u4,
-	cnvst:    bool,
-	ch_rst:   bool,
-	cal:      bool,
 	rst:      bool,
+	cal:      bool,
+	ch_rst:   bool,
+	cnvst:    bool,
+	reserved: u4,
 }
 
 #[bitsize(8)]
@@ -348,8 +348,8 @@ pub enum AppendStatus {
 #[bitsize(8)]
 #[derive(Default, FromBits, Clone, Copy)]
 pub struct OsrConfig {
-	reserved: u5,
 	osr:      OversamplingRatio,
+	reserved: u5,
 }
 
 #[bitsize(3)]
@@ -369,9 +369,9 @@ pub enum OversamplingRatio {
 #[bitsize(8)]
 #[derive(Default, FromBits, Clone, Copy)]
 pub struct OpmodeConfig {
-	reserved: u3,
-	osc_sel:  OscSel,
 	clk_div:  ClkDiv,
+	osc_sel:  OscSel,
+	reserved: u3,
 }
 
 #[bitsize(1)]
@@ -432,10 +432,10 @@ pub struct GpiValue([bool; 8]);
 #[bitsize(8)]
 #[derive(Default, FromBits, Clone, Copy)]
 pub struct SequenceConfig {
-	reserved:  u3,
-	seq_start: bool,
-	reserved:  u2,
 	seq_mode:  SeqMode,
+	reserved:  u2,
+	seq_start: bool,
+	reserved:  u3,
 }
 
 #[bitsize(2)]
@@ -451,8 +451,8 @@ pub enum SeqMode {
 #[bitsize(8)]
 #[derive(FromBits, Clone, Copy)]
 pub struct ChannelSelect {
-	reserved:    u4,
 	manual_chid: Channel,
+	reserved:    u4,
 }
 
 #[bitsize(8)]
