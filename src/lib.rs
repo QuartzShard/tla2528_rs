@@ -78,9 +78,12 @@ impl<I2C: i2c::I2c> Tla2528<I2C> {
 		};
 
 		adc.write_config(config)?;
+        adc.write_reg(GPO_VALUE, 0x0)?;
 
 		let status = adc.read_status()?;
-		if !status.rsvd() || status.crc_err_fuse() {
+        let gen_cfg = adc.read_reg(GENERAL_CFG)?;
+
+		if !status.rsvd() || status.crc_err_fuse() || gen_cfg.value() != 0 {
 			return Err(TlaError::InitFail);
 		};
 
@@ -244,6 +247,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C> {
 		self.write_pin_config(config.pin)?;
 		self.write_gpio_config(config.gpio)?;
 		self.write_gpo_drive_config(config.gpo_drive)?;
+        self.write_seq_config(config.sequence)?;
 		Ok(())
 	}
 
@@ -280,6 +284,11 @@ impl<I2C: i2c::I2c> Tla2528<I2C> {
 	pub fn write_gpo_drive_config(&mut self, config: GpoDriveConfig) -> Result<(), TlaError<I2C>> {
 		self.config.gpo_drive = config;
 		self.write_reg(GPO_DRIVE_CONFIG, self.config.gpo_drive.value)
+	}
+
+	pub fn write_seq_config(&mut self, config: SequenceConfig) -> Result<(), TlaError<I2C>> {
+		self.config.sequence= config;
+		self.write_reg(SEQUENCE_CFG, self.config.gpo_drive.value)
 	}
 }
 
