@@ -1,6 +1,6 @@
 #![no_std]
 
-use core::fmt::Debug;
+use core::{fmt::Debug, marker::PhantomData};
 
 use bilge::prelude::*;
 use embedded_hal::i2c;
@@ -51,19 +51,30 @@ pub enum Channel {
 	Reserved,
 }
 
+mod seal {
+    pub(super) trait Sealed {}
+}
+#[allow(private_bounds)]
+pub trait Mode: seal::Sealed {}
+pub enum Sync {}
+impl Mode for Sync {}
+impl seal::Sealed for Sync {}
+pub enum Async {}
+impl Mode for Async {}
+impl seal::Sealed for Async {}
 // Impl
 
 /// Driver for the [tla2528](https://www.ti.com/lit/ds/symlink/tla2528.pdf?ts=1759289066702) I2C ADC
-pub struct Tla2528<I2C>
+pub struct Tla2528<I2C, M: Mode>
 where
-	I2C: i2c::I2c,
 {
 	addr:   u8,
 	i2c:    I2C,
 	config: Config,
+    _mode: PhantomData<M>
 }
 
-impl<I2C: i2c::I2c> Tla2528<I2C> {
+impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	/// Construct and init a new [Tla2528]
 	///
 	/// # Errors
@@ -75,6 +86,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C> {
 			addr,
 			i2c,
 			config: Config::default(),
+            _mode: PhantomData
 		};
 
 		adc.write_config(config)?;
@@ -292,6 +304,240 @@ impl<I2C: i2c::I2c> Tla2528<I2C> {
 	}
 }
 
+impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
+	/// Construct and init a new [Tla2528]
+	///
+	/// # Errors
+	///
+	/// This function will return an error if the I2C comms error, or the status read-back is
+	/// incorrect
+	pub async fn new(addr: u8, i2c: I2C, config: Config) -> Result<Self, TlaError<I2C>> {
+		let mut adc = Self {
+			addr,
+			i2c,
+			config: Config::default(),
+            _mode: PhantomData
+		};
+
+		adc.write_config(config).await?;
+        adc.write_reg(GPO_VALUE, 0x0).await?;
+
+		let status = adc.read_status().await?;
+        let gen_cfg = adc.read_reg(GENERAL_CFG).await?;
+
+		if !status.rsvd() || status.crc_err_fuse() || gen_cfg.value() != 0 {
+			return Err(TlaError::InitFail);
+		};
+
+		Ok(adc)
+	}
+
+	pub async fn read_status(&mut self) -> Result<SystemStatus, TlaError<I2C>> {
+		Ok(SystemStatus::from(self.read_reg(SYSTEM_STATUS).await?))
+	}
+
+	/// Read from a specific ADC channel, once
+	pub async fn analog_read_manual(&mut self, channel: Channel) -> Result<u16, TlaError<I2C>> {
+		let channel = channel as u8;
+		if let SeqMode::Automatic = self.config.sequence.seq_mode() {
+			return Err(TlaError::WrongMode);
+		};
+		if self.config.pin.val_0_at(channel as usize) {
+			return Err(TlaError::AnalogFromDigital);
+		}
+
+		self.write_reg(CHANNEL_SEL, channel).await?;
+		Ok(self.analog_read().await?.0)
+	}
+
+	/// Read from all active ADC channels in order
+	pub async fn analog_read_auto<'buf>(
+		&mut self,
+		reads: &'buf mut [(u16, Option<Channel>)],
+	) -> Result<&'buf [(u16, Option<Channel>)], TlaError<I2C>> {
+		if let SeqMode::Manual = self.config.sequence.seq_mode() {
+			return Err(TlaError::WrongMode);
+		};
+		self.set_bit(SEQUENCE_CFG, 0x10).await?;
+		for &mut (ref mut val, ref mut channel) in reads.iter_mut() {
+			(*val, *channel) = self.analog_read().await?;
+		}
+		self.clear_bit(SEQUENCE_CFG, 0x10).await?;
+		Ok(reads)
+	}
+
+	/// Shared impl for reads. Handles different buffer lengths caused by different config
+	async fn analog_read(&mut self) -> Result<(u16, Option<Channel>), TlaError<I2C>> {
+		let channel_append = self.config.data.append_status();
+		let averaging = if let OversamplingRatio::_0 = self.config.osr.osr() {
+			false
+		} else {
+			true
+		};
+
+		let mut buf = [0u8; 3];
+
+		let buf = match (&channel_append, averaging) {
+			(AppendStatus::Yes, true) => &mut buf[..3],
+			_ => &mut buf[..2],
+		};
+
+		self.i2c
+			.read(self.addr, buf)
+            .await
+			.map_err(|e| TlaError::I2c(e))?;
+
+		let read = if averaging {
+			(buf[0] as u16) << 8 | buf[1] as u16
+		} else {
+			(buf[0] as u16) << 4 | (buf[1] as u16) >> 4
+		};
+
+		let channel = match (&channel_append, averaging) {
+			(AppendStatus::Yes, true) => Some(Channel::from(u4::new(buf[2] >> 4))),
+			(AppendStatus::Yes, false) => Some(Channel::from(u4::new(buf[1] & 0x0F))),
+			(AppendStatus::No, _) => None,
+			(AppendStatus::Invalid, _) => None,
+		};
+		Ok((read, channel))
+	}
+
+	/// Read a specific GPIO
+	pub async fn digital_in(&mut self, channel: Channel) -> Result<bool, TlaError<I2C>> {
+        self.valid_gpi(channel).await?;
+		let channel = channel as u8;
+		Ok((self.read_reg(GPI_VALUE).await? & 1 << channel).count_ones() == 1)
+	}
+
+    pub async fn valid_gpi(&mut self, channel: Channel) -> Result<(), TlaError<I2C>> {
+		let channel = channel as usize;
+		if !self.config.pin.val_0_at(channel) {
+			return Err(TlaError::DigitalFromAnalog);
+		};
+		if self.config.gpio.val_0_at(channel) {
+			return Err(TlaError::WrongGPIODirection);
+		};
+        Ok(())
+    }
+
+	/// Read all GPIO. Pins that are not configured as Digital In will be masked to 0
+	pub async fn read_gpio(&mut self) -> Result<u8, TlaError<I2C>> {
+		let mask = self.config.pin.value & !self.config.gpio.value;
+		Ok(self.read_reg(GPI_VALUE).await? & mask)
+	}
+
+	/// Set a GPIO out
+	pub async fn digital_out(&mut self, channel: Channel, val: bool) -> Result<(), TlaError<I2C>> {
+        self.valid_gpo(channel).await?;
+		let channel = channel as u8;
+		if val {
+			self.set_bit(GPO_VALUE, 1 << channel).await
+		} else {
+			self.clear_bit(GPO_VALUE, 1 << channel).await
+		}
+	}
+
+    pub async fn valid_gpo(&mut self, channel: Channel) -> Result<(), TlaError<I2C>> {
+		let channel = channel as usize;
+		if !self.config.pin.val_0_at(channel) {
+			return Err(TlaError::DigitalFromAnalog);
+		};
+		if !self.config.gpio.val_0_at(channel) {
+			return Err(TlaError::WrongGPIODirection);
+		};
+        Ok(())
+    }
+
+	/// Write a new value to a register
+	async fn write_reg(&mut self, addr: u8, val: u8) -> Result<(), TlaError<I2C>> {
+		self.i2c
+			.write(self.addr, &[Opcode::SingleWrite as u8, addr, val])
+            .await
+			.map_err(|e| TlaError::I2c(e))?;
+		Ok(())
+	}
+
+	/// Read the contents of a register
+	async fn read_reg(&mut self, addr: u8) -> Result<u8, TlaError<I2C>> {
+		let mut buf = [0u8];
+		self.i2c
+			.write_read(self.addr, &[Opcode::SingleRead as u8, addr], &mut buf)
+            .await
+			.map_err(|e| TlaError::I2c(e))?;
+		Ok(buf[0])
+	}
+
+	/// Set bits in a register. Does not modify bits that are set to 0 in the arg
+	async fn set_bit(&mut self, addr: u8, bitmask: u8) -> Result<(), TlaError<I2C>> {
+		self.i2c
+			.write(self.addr, &[Opcode::SetBit as u8, addr, bitmask])
+            .await
+			.map_err(|e| TlaError::I2c(e))?;
+		Ok(())
+	}
+
+	/// Clear bits in a register. Does not modify bits that are set to 0 in the arg
+	async fn clear_bit(&mut self, addr: u8, bitmask: u8) -> Result<(), TlaError<I2C>> {
+		self.i2c
+			.write(self.addr, &[Opcode::ClearBit as u8, addr, bitmask])
+            .await
+			.map_err(|e| TlaError::I2c(e))?;
+		Ok(())
+	}
+
+	/// Write the entire config to the ADC
+	pub async fn write_config(&mut self, config: Config) -> Result<(), TlaError<I2C>> {
+		self.write_general_config(config.general).await?;
+		self.write_data_config(config.data).await?;
+		self.write_osr_config(config.osr).await?;
+		self.write_opmode_config(config.opmode).await?;
+		self.write_pin_config(config.pin).await?;
+		self.write_gpio_config(config.gpio).await?;
+		self.write_gpo_drive_config(config.gpo_drive).await?;
+        self.write_seq_config(config.sequence).await?;
+		Ok(())
+	}
+
+	pub async fn write_general_config(&mut self, config: GeneralConfig) -> Result<(), TlaError<I2C>> {
+		self.config.general = config;
+		self.write_reg(GENERAL_CFG, self.config.general.value).await
+	}
+
+	pub async fn write_data_config(&mut self, config: DataConfig) -> Result<(), TlaError<I2C>> {
+		self.config.data = config;
+		self.write_reg(DATA_CFG, self.config.data.value).await
+	}
+
+	pub async fn write_osr_config(&mut self, config: OsrConfig) -> Result<(), TlaError<I2C>> {
+		self.config.osr = config;
+		self.write_reg(OSR_CFG, self.config.osr.value).await
+	}
+
+	pub async fn write_opmode_config(&mut self, config: OpmodeConfig) -> Result<(), TlaError<I2C>> {
+		self.config.opmode = config;
+		self.write_reg(OPMODE_CFG, self.config.opmode.value).await
+	}
+
+	pub async fn write_pin_config(&mut self, config: PinConfig) -> Result<(), TlaError<I2C>> {
+		self.config.pin = config;
+		self.write_reg(PIN_CFG, self.config.pin.value).await
+	}
+
+	pub async fn write_gpio_config(&mut self, config: GpioConfig) -> Result<(), TlaError<I2C>> {
+		self.config.gpio = config;
+		self.write_reg(GPIO_CONFIG, self.config.gpio.value).await
+	}
+
+	pub async fn write_gpo_drive_config(&mut self, config: GpoDriveConfig) -> Result<(), TlaError<I2C>> {
+		self.config.gpo_drive = config;
+		self.write_reg(GPO_DRIVE_CONFIG, self.config.gpo_drive.value).await
+	}
+
+	pub async fn write_seq_config(&mut self, config: SequenceConfig) -> Result<(), TlaError<I2C>> {
+		self.config.sequence= config;
+		self.write_reg(SEQUENCE_CFG, self.config.gpo_drive.value).await
+	}
+}
 // Config register bitmaps
 
 #[derive(Default, Clone)]
@@ -469,7 +715,7 @@ pub struct ChannelSelect {
 pub struct AutoSeqChannelSelect([bool; 8]);
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum TlaError<I2C: i2c::I2c> {
+pub enum TlaError<I2C: i2c::ErrorType> {
 	I2c(I2C::Error),
 	InitFail,
 	WrongMode,
