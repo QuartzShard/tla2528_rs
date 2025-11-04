@@ -40,6 +40,20 @@ pub struct GpioWrapper<'a, I2C, M: Mode, IM: super::Mode> {
     _mode: PhantomData<M>
 }
 
+pub trait AsyncInputPinAdapter: embedded_hal_async::i2c::ErrorType {
+    fn is_high(&mut self) -> impl Future<Output = Result<bool, Self::Error>>;
+    fn is_low(&mut self) -> impl Future<Output = Result<bool, Self::Error>> {
+        async move {
+            self.is_high().await.map(|p| !p)
+        }    
+    }
+}
+
+pub trait AsyncOutputPinAdapter: embedded_hal_async::i2c::ErrorType {
+    fn set_high(&mut self) -> impl Future<Output = Result<bool, Self::Error>>;
+    fn set_low(&mut self) -> impl Future<Output = Result<bool, Self::Error>>;
+}
+
 impl<I2C: i2c::ErrorType, M: Mode, IM: super::Mode> embedded_hal::digital::ErrorType for GpioWrapper<'_, I2C, M, IM> {
     type Error = TlaError<I2C>;
 }

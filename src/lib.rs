@@ -9,6 +9,7 @@ mod gpio;
 #[cfg(feature = "gpio")]
 pub use gpio::*;
 
+
 // Registers
 pub const SYSTEM_STATUS: u8 = 0x00; // Reset 0x80
 pub const GENERAL_CFG: u8 = 0x01; // Reset 0x00
