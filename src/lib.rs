@@ -1,5 +1,4 @@
 #![no_std]
-
 use core::{fmt::Debug, marker::PhantomData};
 
 use bilge::prelude::*;
@@ -81,7 +80,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	///
 	/// This function will return an error if the I2C comms error, or the status read-back is
 	/// incorrect
-	pub fn new(addr: u8, i2c: I2C, config: Config) -> Result<Self, TlaError<I2C>> {
+	pub fn new(addr: u8, i2c: I2C, config: &Config) -> Result<Self, TlaError<I2C>> {
 		let mut adc = Self {
 			addr,
 			i2c,
@@ -139,11 +138,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	/// Shared impl for reads. Handles different buffer lengths caused by different config
 	fn analog_read(&mut self) -> Result<(u16, Option<Channel>), TlaError<I2C>> {
 		let channel_append = self.config.data.append_status();
-		let averaging = if let OversamplingRatio::_0 = self.config.osr.osr() {
-			false
-		} else {
-			true
-		};
+		let averaging = matches!(self.config.osr.osr(), OversamplingRatio::_0);
 
 		let mut buf = [0u8; 3];
 
@@ -165,8 +160,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 		let channel = match (&channel_append, averaging) {
 			(AppendStatus::Yes, true) => Some(Channel::from(u4::new(buf[2] >> 4))),
 			(AppendStatus::Yes, false) => Some(Channel::from(u4::new(buf[1] & 0x0F))),
-			(AppendStatus::No, _) => None,
-			(AppendStatus::Invalid, _) => None,
+			(AppendStatus::No | AppendStatus::Invalid, _) => None,
 		};
 		Ok((read, channel))
 	}
@@ -175,7 +169,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	pub fn digital_in(&mut self, channel: Channel) -> Result<bool, TlaError<I2C>> {
         self.valid_gpi(channel)?;
 		let channel = channel as u8;
-		Ok((self.read_reg(GPI_VALUE)? & 1 << channel).count_ones() == 1)
+		Ok((self.read_reg(GPI_VALUE)? & 1 << channel).is_power_of_two())
 	}
 
     pub fn valid_gpi(&mut self, channel: Channel) -> Result<(), TlaError<I2C>> {
@@ -251,7 +245,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	}
 
 	/// Write the entire config to the ADC
-	pub fn write_config(&mut self, config: Config) -> Result<(), TlaError<I2C>> {
+	pub fn write_config(&mut self, config: &Config) -> Result<(), TlaError<I2C>> {
 		self.write_general_config(config.general)?;
 		self.write_data_config(config.data)?;
 		self.write_osr_config(config.osr)?;
@@ -369,11 +363,7 @@ impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
 	/// Shared impl for reads. Handles different buffer lengths caused by different config
 	async fn analog_read(&mut self) -> Result<(u16, Option<Channel>), TlaError<I2C>> {
 		let channel_append = self.config.data.append_status();
-		let averaging = if let OversamplingRatio::_0 = self.config.osr.osr() {
-			false
-		} else {
-			true
-		};
+		let averaging = matches!(self.config.osr.osr(), OversamplingRatio::_0); 
 
 		let mut buf = [0u8; 3];
 
@@ -396,8 +386,7 @@ impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
 		let channel = match (&channel_append, averaging) {
 			(AppendStatus::Yes, true) => Some(Channel::from(u4::new(buf[2] >> 4))),
 			(AppendStatus::Yes, false) => Some(Channel::from(u4::new(buf[1] & 0x0F))),
-			(AppendStatus::No, _) => None,
-			(AppendStatus::Invalid, _) => None,
+			(AppendStatus::No | AppendStatus::Invalid, _) => None,
 		};
 		Ok((read, channel))
 	}
@@ -406,7 +395,7 @@ impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
 	pub async fn digital_in(&mut self, channel: Channel) -> Result<bool, TlaError<I2C>> {
         self.valid_gpi(channel).await?;
 		let channel = channel as u8;
-		Ok((self.read_reg(GPI_VALUE).await? & 1 << channel).count_ones() == 1)
+		Ok((self.read_reg(GPI_VALUE).await? & 1 << channel).is_power_of_two())
 	}
 
     pub async fn valid_gpi(&mut self, channel: Channel) -> Result<(), TlaError<I2C>> {
@@ -724,7 +713,7 @@ pub enum TlaError<I2C: i2c::ErrorType> {
 	WrongGPIODirection,
 }
 
-impl<I2C: i2c::I2c> Debug for TlaError<I2C> {
+impl<I2C: i2c::ErrorType> Debug for TlaError<I2C> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::I2c(_) => write!(f, "I2CError"), 

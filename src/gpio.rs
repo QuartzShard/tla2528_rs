@@ -1,11 +1,20 @@
-use core::{cell::RefCell, marker::PhantomData};
+use core::{marker::PhantomData};
+#[cfg(feature = "gpio_rtic_arbiter")]
+use embedded_hal::i2c::ErrorType;
+
 use super::*;
 
-mutually_exclusive_features::exactly_one_of!("gpio_critical_section", "gpio_atomic");
+mutually_exclusive_features::none_or_one_of!("gpio_critical_section", "gpio_atomic", "gpio_rtic_arbiter");
 
-impl<I2C: i2c::I2c> embedded_hal::digital::Error for TlaError<I2C> {
+impl<I2C: i2c::ErrorType> embedded_hal::digital::Error for TlaError<I2C> {
     fn kind(&self) -> embedded_hal::digital::ErrorKind {
         embedded_hal::digital::ErrorKind::Other
+    }
+} 
+
+impl<I2C: i2c::ErrorType> embedded_hal::i2c::Error for TlaError<I2C> {
+    fn kind(&self) -> embedded_hal::i2c::ErrorKind {
+        embedded_hal::i2c::ErrorKind::Other
     }
 } 
 
@@ -23,24 +32,23 @@ pub struct Input {}
 impl Mode for Input {}
 impl seal::Seal for Input {}
 
-/// Wrapper allowing the TLA2528's digital outputs to be compatible with the embedded_hal digital
+/// Wrapper allowing the TLA2528's digital outputs to be compatible with the `embedded_hal` digital
 /// traits.
-pub struct GpioWrapper<'a, I2C: i2c::I2c, M: Mode, IM: super::Mode> {
+pub struct GpioWrapper<'a, I2C, M: Mode, IM: super::Mode> {
     tla: &'a Mutex<Tla2528<I2C, IM>>,
     channel: Channel,
     _mode: PhantomData<M>
 }
 
-impl<T: i2c::I2c, M: super::Mode> core::fmt::Debug for GpioWrapper<'_, embedded_hal_bus::i2c::CriticalSectionDevice<'_, T>, Output, M> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "GpioWrapper")
-    }
+impl<I2C: i2c::ErrorType, M: Mode, IM: super::Mode> embedded_hal::digital::ErrorType for GpioWrapper<'_, I2C, M, IM> {
+    type Error = TlaError<I2C>;
 }
-
-impl<I2C: i2c::I2c, M: Mode, IM: super::Mode> embedded_hal::digital::ErrorType for GpioWrapper<'_, I2C, M, IM> {
+impl<I2C: i2c::ErrorType, M: Mode, IM: super::Mode> embedded_hal::i2c::ErrorType for GpioWrapper<'_, I2C, M, IM> {
     type Error = TlaError<I2C>;
 }
 
+#[cfg(feature = "gpio_critical_section")]
+use core::cell::RefCell;
 #[cfg(feature = "gpio_critical_section")]
 type Mutex<T> = critical_section::Mutex<RefCell<T>>;
 
@@ -90,6 +98,41 @@ impl<I2C: i2c::I2c> embedded_hal::digital::InputPin for GpioWrapper<'_, I2C, Inp
         critical_section::with(|c| {
             self.tla.borrow_ref_mut(c).digital_in(self.channel)
         }).map(|v| !v)
+    }
+}
+
+#[cfg(feature = "gpio_rtic_arbiter")]
+type Mutex<T> = rtic_sync::arbiter::Arbiter<T>;
+
+
+#[cfg(feature = "gpio_rtic_arbiter")]
+impl<'a, I2C: embedded_hal_async::i2c::I2c> GpioWrapper<'a, I2C, Output, Async> {
+    pub async fn new(tla: &'a Mutex<Tla2528<I2C, Async>>, channel: Channel) ->  Result<Self, TlaError<I2C>> {
+        let tla = Self { tla, channel, _mode: PhantomData };
+        tla.tla.access().await.valid_gpo(channel).await?;
+        Ok(tla)
+    }
+    pub async fn set_low(&mut self) -> Result<(), <Self as ErrorType>::Error> {
+        self.tla.access().await.digital_out(self.channel, false).await
+    }
+
+    pub async fn set_high(&mut self) -> Result<(), <Self as ErrorType>::Error> {
+        self.tla.access().await.digital_out(self.channel, true).await
+    }
+}
+#[cfg(feature = "gpio_rtic_arbiter")]
+impl<'a, I2C: embedded_hal_async::i2c::I2c> GpioWrapper<'a, I2C, Input, Async> {
+    pub async fn new(tla: &'a Mutex<Tla2528<I2C, Async>>, channel: Channel) ->  Result<Self, TlaError<I2C>> {
+        let tla = Self { tla, channel, _mode: PhantomData };
+        tla.tla.access().await.valid_gpi(channel).await?;
+        Ok(tla)
+    }
+    pub async fn is_high(&mut self) -> Result<bool, <Self as ErrorType>::Error> {
+        self.tla.access().await.digital_in(self.channel).await
+    }
+
+    pub async fn is_low(&mut self) -> Result<bool, <Self as ErrorType>::Error> {
+        self.tla.access().await.digital_in(self.channel).await
     }
 }
 

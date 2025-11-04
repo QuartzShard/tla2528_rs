@@ -7,6 +7,7 @@ edition = "2024"
 bilge = "0.3.0"
 critical-section = { version = "1.2.0", optional = true }
 portable-atomic = { version = "1.11.1", optional = true }
+rtic-sync = { version = "1.4.0", optional = true }
 embedded-hal = "1.0.0"
 mutually_exclusive_features = "0.1.0"
 defmt = { version = "1.0.1", optional = true }
@@ -14,8 +15,9 @@ embedded-hal-bus = "0.3.0"
 embedded-hal-async = "1.0.0"
 
 [features]
-default = ["gpio", "gpio_critical_section"]
+default = ["gpio", "gpio_rtic_arbiter"]
 defmt = ["dep:defmt"]
 gpio = []
 gpio_critical_section = ["dep:critical-section"]
+gpio_rtic_arbiter = ["dep:rtic-sync"]
 gpio_atomic = ["dep:portable-atomic"]
