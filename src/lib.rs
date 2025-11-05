@@ -143,7 +143,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	/// Shared impl for reads. Handles different buffer lengths caused by different config
 	fn analog_read(&mut self) -> Result<(u16, Option<Channel>), TlaError<I2C>> {
 		let channel_append = self.config.data.append_status();
-		let averaging = matches!(self.config.osr.osr(), OversamplingRatio::_0);
+		let averaging = !matches!(self.config.osr.osr(), OversamplingRatio::_0);
 
 		let mut buf = [0u8; 3];
 
@@ -362,7 +362,7 @@ impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
 	/// Shared impl for reads. Handles different buffer lengths caused by different config
 	async fn analog_read(&mut self) -> Result<(u16, Option<Channel>), TlaError<I2C>> {
 		let channel_append = self.config.data.append_status();
-		let averaging = matches!(self.config.osr.osr(), OversamplingRatio::_0); 
+		let averaging = !matches!(self.config.osr.osr(), OversamplingRatio::_0); 
 
 		let mut buf = [0u8; 3];
 
