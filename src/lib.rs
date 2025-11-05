@@ -62,6 +62,7 @@ impl seal::Sealed for Sync {}
 pub enum Async {}
 impl Mode for Async {}
 impl seal::Sealed for Async {}
+
 // Impl
 
 /// Driver for the [tla2528](https://www.ti.com/lit/ds/symlink/tla2528.pdf?ts=1759289066702) I2C ADC
@@ -74,6 +75,17 @@ where
     _mode: PhantomData<M>
 }
 
+impl<I2C: i2c::ErrorType, M: Mode> Tla2528<I2C, M> {
+	pub fn new(addr: u8, i2c: I2C, config: Config) -> Self {
+		Self {
+			addr,
+			i2c,
+			config,
+            _mode: PhantomData
+		}
+    }
+}
+
 impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	/// Construct and init a new [Tla2528]
 	///
@@ -81,25 +93,17 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	///
 	/// This function will return an error if the I2C comms error, or the status read-back is
 	/// incorrect
-	pub fn new(addr: u8, i2c: I2C, config: &Config) -> Result<Self, TlaError<I2C>> {
-		let mut adc = Self {
-			addr,
-			i2c,
-			config: Config::default(),
-            _mode: PhantomData
-		};
+	pub fn init(&mut self) -> Result<(), TlaError<I2C>> {
+		self.write_config(None)?;
+        self.write_reg(GPO_VALUE, 0x0)?;
 
-		adc.write_config(config)?;
-        adc.write_reg(GPO_VALUE, 0x0)?;
-
-		let status = adc.read_status()?;
-        let gen_cfg = adc.read_reg(GENERAL_CFG)?;
+		let status = self.read_status()?;
+        let gen_cfg = self.read_reg(GENERAL_CFG)?;
 
 		if !status.rsvd() || status.crc_err_fuse() || gen_cfg.value() != 0 {
 			return Err(TlaError::InitFail);
 		};
-
-		Ok(adc)
+		Ok(())
 	}
 
 	pub fn read_status(&mut self) -> Result<SystemStatus, TlaError<I2C>> {
@@ -246,7 +250,8 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	}
 
 	/// Write the entire config to the ADC
-	pub fn write_config(&mut self, config: &Config) -> Result<(), TlaError<I2C>> {
+	pub fn write_config(&mut self, config: Option<Config>) -> Result<(), TlaError<I2C>> {
+        let config = config.unwrap_or(self.config.clone());
 		self.write_general_config(config.general)?;
 		self.write_data_config(config.data)?;
 		self.write_osr_config(config.osr)?;
@@ -306,25 +311,18 @@ impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
 	///
 	/// This function will return an error if the I2C comms error, or the status read-back is
 	/// incorrect
-	pub async fn new(addr: u8, i2c: I2C, config: Config) -> Result<Self, TlaError<I2C>> {
-		let mut adc = Self {
-			addr,
-			i2c,
-			config: Config::default(),
-            _mode: PhantomData
-		};
+	pub async fn init(&mut self) -> Result<(), TlaError<I2C>> {
+		self.write_config(None).await?;
+        self.write_reg(GPO_VALUE, 0x0).await?;
 
-		adc.write_config(config).await?;
-        adc.write_reg(GPO_VALUE, 0x0).await?;
-
-		let status = adc.read_status().await?;
-        let gen_cfg = adc.read_reg(GENERAL_CFG).await?;
+		let status = self.read_status().await?;
+        let gen_cfg = self.read_reg(GENERAL_CFG).await?;
 
 		if !status.rsvd() || status.crc_err_fuse() || gen_cfg.value() != 0 {
 			return Err(TlaError::InitFail);
 		};
 
-		Ok(adc)
+		Ok(())
 	}
 
 	pub async fn read_status(&mut self) -> Result<SystemStatus, TlaError<I2C>> {
@@ -476,7 +474,8 @@ impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
 	}
 
 	/// Write the entire config to the ADC
-	pub async fn write_config(&mut self, config: Config) -> Result<(), TlaError<I2C>> {
+	pub async fn write_config(&mut self, config: Option<Config>) -> Result<(), TlaError<I2C>> {
+        let config = config.unwrap_or(self.config.clone());
 		self.write_general_config(config.general).await?;
 		self.write_data_config(config.data).await?;
 		self.write_osr_config(config.osr).await?;
