@@ -217,7 +217,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
     }
 
 	/// Write a new value to a register
-	fn write_reg(&mut self, addr: u8, val: u8) -> Result<(), TlaError<I2C>> {
+	pub fn write_reg(&mut self, addr: u8, val: u8) -> Result<(), TlaError<I2C>> {
 		self.i2c
 			.write(self.addr, &[Opcode::SingleWrite as u8, addr, val])
 			.map_err(|e| TlaError::I2c(e))?;
@@ -225,7 +225,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	}
 
 	/// Read the contents of a register
-	fn read_reg(&mut self, addr: u8) -> Result<u8, TlaError<I2C>> {
+	pub fn read_reg(&mut self, addr: u8) -> Result<u8, TlaError<I2C>> {
 		let mut buf = [0u8];
 		self.i2c
 			.write_read(self.addr, &[Opcode::SingleRead as u8, addr], &mut buf)
@@ -234,7 +234,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	}
 
 	/// Set bits in a register. Does not modify bits that are set to 0 in the arg
-	fn set_bit(&mut self, addr: u8, bitmask: u8) -> Result<(), TlaError<I2C>> {
+	pub fn set_bit(&mut self, addr: u8, bitmask: u8) -> Result<(), TlaError<I2C>> {
 		self.i2c
 			.write(self.addr, &[Opcode::SetBit as u8, addr, bitmask])
 			.map_err(|e| TlaError::I2c(e))?;
@@ -242,7 +242,7 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 	}
 
 	/// Clear bits in a register. Does not modify bits that are set to 0 in the arg
-	fn clear_bit(&mut self, addr: u8, bitmask: u8) -> Result<(), TlaError<I2C>> {
+	pub fn clear_bit(&mut self, addr: u8, bitmask: u8) -> Result<(), TlaError<I2C>> {
 		self.i2c
 			.write(self.addr, &[Opcode::ClearBit as u8, addr, bitmask])
 			.map_err(|e| TlaError::I2c(e))?;
@@ -437,7 +437,7 @@ impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
     }
 
 	/// Write a new value to a register
-	async fn write_reg(&mut self, addr: u8, val: u8) -> Result<(), TlaError<I2C>> {
+	pub async fn write_reg(&mut self, addr: u8, val: u8) -> Result<(), TlaError<I2C>> {
 		self.i2c
 			.write(self.addr, &[Opcode::SingleWrite as u8, addr, val])
             .await
@@ -446,7 +446,7 @@ impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
 	}
 
 	/// Read the contents of a register
-	async fn read_reg(&mut self, addr: u8) -> Result<u8, TlaError<I2C>> {
+	pub async fn read_reg(&mut self, addr: u8) -> Result<u8, TlaError<I2C>> {
 		let mut buf = [0u8];
 		self.i2c
 			.write_read(self.addr, &[Opcode::SingleRead as u8, addr], &mut buf)
@@ -456,7 +456,7 @@ impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
 	}
 
 	/// Set bits in a register. Does not modify bits that are set to 0 in the arg
-	async fn set_bit(&mut self, addr: u8, bitmask: u8) -> Result<(), TlaError<I2C>> {
+	pub async fn set_bit(&mut self, addr: u8, bitmask: u8) -> Result<(), TlaError<I2C>> {
 		self.i2c
 			.write(self.addr, &[Opcode::SetBit as u8, addr, bitmask])
             .await
@@ -465,7 +465,7 @@ impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
 	}
 
 	/// Clear bits in a register. Does not modify bits that are set to 0 in the arg
-	async fn clear_bit(&mut self, addr: u8, bitmask: u8) -> Result<(), TlaError<I2C>> {
+	pub async fn clear_bit(&mut self, addr: u8, bitmask: u8) -> Result<(), TlaError<I2C>> {
 		self.i2c
 			.write(self.addr, &[Opcode::ClearBit as u8, addr, bitmask])
             .await
