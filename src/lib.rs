@@ -263,6 +263,19 @@ impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
 		Ok(())
 	}
 
+    /// Manually ensure that the config matches the config on-device
+    pub fn sync(&mut self) -> Result<(), TlaError<I2C>> {
+        self.config.general = GeneralConfig::from(self.read_reg(GENERAL_CFG)?);
+        self.config.data = DataConfig::from(self.read_reg(DATA_CFG)?);
+        self.config.osr = OsrConfig::from(self.read_reg(OSR_CFG)?);
+        self.config.opmode = OpmodeConfig::from(self.read_reg(OPMODE_CFG)?);
+        self.config.pin = PinConfig::from(self.read_reg(PIN_CFG)?);
+        self.config.gpio = GpioConfig::from(self.read_reg(GPIO_CONFIG)?);
+        self.config.gpo_drive = GpoDriveConfig::from(self.read_reg(GPO_DRIVE_CONFIG)?);
+        self.config.sequence = SequenceConfig::from(self.read_reg(SEQUENCE_CFG)?);
+        Ok(()) 
+    }
+
 	pub fn write_general_config(&mut self, config: GeneralConfig) -> Result<(), TlaError<I2C>> {
 		self.config.general = config;
 		self.write_reg(GENERAL_CFG, self.config.general.value)
@@ -486,6 +499,19 @@ impl<I2C: embedded_hal_async::i2c::I2c> Tla2528<I2C, Async> {
         self.write_seq_config(config.sequence).await?;
 		Ok(())
 	}
+
+    /// Manually ensure that the config matches the config on-device
+    pub async fn sync(&mut self) -> Result<(), TlaError<I2C>> {
+        self.config.general = GeneralConfig::from(self.read_reg(GENERAL_CFG).await?);
+        self.config.data = DataConfig::from(self.read_reg(DATA_CFG).await?);
+        self.config.osr = OsrConfig::from(self.read_reg(OSR_CFG).await?);
+        self.config.opmode = OpmodeConfig::from(self.read_reg(OPMODE_CFG).await?);
+        self.config.pin = PinConfig::from(self.read_reg(PIN_CFG).await?);
+        self.config.gpio = GpioConfig::from(self.read_reg(GPIO_CONFIG).await?);
+        self.config.gpo_drive = GpoDriveConfig::from(self.read_reg(GPO_DRIVE_CONFIG).await?);
+        self.config.sequence = SequenceConfig::from(self.read_reg(SEQUENCE_CFG).await?);
+        Ok(()) 
+    }
 
 	pub async fn write_general_config(&mut self, config: GeneralConfig) -> Result<(), TlaError<I2C>> {
 		self.config.general = config;
