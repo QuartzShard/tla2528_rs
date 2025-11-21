@@ -84,6 +84,10 @@ impl<I2C: i2c::ErrorType, M: Mode> Tla2528<I2C, M> {
             _mode: PhantomData
 		}
     }
+
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
 }
 
 impl<I2C: i2c::I2c> Tla2528<I2C, Sync> {
