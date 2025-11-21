@@ -681,27 +681,27 @@ pub enum ClkDiv {
 #[bitsize(8)]
 #[derive(Default, FromBits, Clone, Copy)]
 /// 0 for AIN, 1 for GPIO
-pub struct PinConfig([bool; 8]);
+pub struct PinConfig(pub [bool; 8]);
 
 #[bitsize(8)]
 #[derive(Default, FromBits, Clone, Copy)]
 /// 0 for In, 1 for Out
-pub struct GpioConfig([bool; 8]);
+pub struct GpioConfig(pub [bool; 8]);
 
 #[bitsize(8)]
 #[derive(Default, FromBits, Clone, Copy)]
 /// 0 for Open-Drain, 1 for Push-Pull
-pub struct GpoDriveConfig([bool; 8]);
+pub struct GpoDriveConfig(pub [bool; 8]);
 
 #[bitsize(8)]
 #[derive(FromBits, Clone, Copy)]
 /// Output
-pub struct GpoValue([bool; 8]);
+pub struct GpoValue(pub [bool; 8]);
 
 #[bitsize(8)]
 #[derive(FromBits, Clone, Copy)]
 // Input
-pub struct GpiValue([bool; 8]);
+pub struct GpiValue(pub [bool; 8]);
 
 #[bitsize(8)]
 #[derive(Default, FromBits, Clone, Copy)]
